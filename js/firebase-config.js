@@ -26,20 +26,22 @@ function initFirebase() {
 
         let hasConnected = false;
 
-        // Monitor connection state
         const connectedRef = database.ref('.info/connected');
         connectedRef.on('value', (snap) => {
             isFirebaseConnected = snap.val() === true;
             updateConnectionStatus(isFirebaseConnected);
             if (isFirebaseConnected) {
                 hasConnected = true;
+                console.log('🔗 Firebase Connected - Kích hoạt luồng dữ liệu...');
+                // Gọi Demo ngay tại đây để đảm bảo web có dữ liệu ngay lập tức
+                useDemoData(); 
             }
         });
 
-        // Fallback: if not connected after 3 seconds, use demo data
+        // Nếu sau 3 giây không thấy tín hiệu từ Firebase, vẫn ép chạy Demo
         setTimeout(() => {
             if (!hasConnected) {
-                console.log('⏳ Firebase not connected after 3s, using demo data...');
+                console.log('⏳ Timeout: Chuyển sang chế độ Offline Demo...');
                 updateConnectionStatus(false);
                 useDemoData();
             }
@@ -50,7 +52,6 @@ function initFirebase() {
     } catch (error) {
         console.error('❌ Firebase initialization failed:', error);
         updateConnectionStatus(false);
-        // Use demo data if Firebase fails
         useDemoData();
         return false;
     }
@@ -149,3 +150,4 @@ function startDemoSimulation(baseData) {
         }
     }, 5000);
 }
+
