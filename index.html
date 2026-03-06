@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Giám Sát Ao Cá | Water Quality & Fish Recognition</title>
+    <meta name="description" content="Hệ thống giám sát chất lượng nước ao cá và nhận dạng hình ảnh cá theo thời gian thực.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-particles" id="bgParticles"></div>
+
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="header-left">
+            <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+                <span></span><span></span><span></span>
+            </button>
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="20" r="18" stroke="url(#logoGrad)" stroke-width="2.5" fill="none"/>
+                    <path d="M12 22c2-4 5-6 8-6s6 2 8 6" stroke="url(#logoGrad)" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M10 18c3-6 7-9 10-9s7 3 10 9" stroke="url(#logoGrad)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+                    <circle cx="20" cy="26" r="2" fill="url(#logoGrad)"/>
+                    <defs>
+                        <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
+                            <stop offset="0%" stop-color="#00d4aa"/>
+                            <stop offset="100%" stop-color="#0099ff"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="logo-text">
+                    <h1>AquaMonitor</h1>
+                    <span class="logo-subtitle">Fish Pond Dashboard</span>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Đang kết nối...</span>
+            </div>
+            <div class="datetime" id="datetime">
+                <span class="date"></span>
+                <span class="time"></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <ul class="nav-list">
+            <li class="nav-item active" data-section="overview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+                <span>Tổng quan</span>
+            </li>
+            <li class="nav-item" data-section="water-quality">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/>
+                </svg>
+                <span>Chất lượng nước</span>
+            </li>
+            <li class="nav-item" data-section="video-stream">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <path d="M10 9l5 3-5 3z"/>
+                </svg>
+                <span>Video Stream</span>
+            </li>
+            <li class="nav-item" data-section="fish-recognition">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 12c3-6 7-9 10-9s7 3 10 9c-3 6-7 9-10 9s-7-3-10-9z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <span>Nhận dạng cá</span>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        
+        <!-- Section: Overview -->
+        <section class="section active" id="section-overview">
+            <div class="section-header">
+                <h2>Tổng Quan Hệ Thống</h2>
+                <div class="pond-status" id="pondStatus">
+                    <span class="pond-status-dot"></span>
+                    <span class="pond-status-text">Đang tải...</span>
+                </div>
+            </div>
+
+            <!-- Water Quality Cards Grid -->
+            <div class="cards-grid" id="waterCards">
+                <!-- Temperature -->
+                <div class="metric-card" data-metric="temperature">
+                    <div class="card-icon temperature">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4.5 4.5 0 105 0z"/>
+                        </svg>
+                    </div>
+                    <div class="card-info">
+                        <span class="card-label">Nhiệt độ</span>
+                        <div class="card-value">
+                            <span class="value" id="val-temperature">--</span>
+                            <span class="unit">°C</span>
+                        </div>
+                    </div>
+                    <div class="card-bar">
+                        <div class="card-bar-fill" id="bar-temperature"></div>
+                    </div>
+                    <span class="card-status" id="status-temperature">Đang tải...</span>
+                </div>
+
+                <!-- pH -->
+                <div class="metric-card" data-metric="ph">
+                    <div class="card-icon ph">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M8 12h8M12 8v8"/>
+                        </svg>
+                    </div>
+                    <div class="card-info">
+                        <span class="card-label">pH</span>
+                        <div class="card-value">
+                            <span class="value" id="val-ph">--</span>
+                            <span class="unit"></span>
+                        </div>
+                    </div>
+                    <div class="card-bar">
+                        <div class="card-bar-fill" id="bar-ph"></div>
+                    </div>
+                    <span class="card-status" id="status-ph">Đang tải...</span>
+                </div>
+
+                <!-- Dissolved Oxygen -->
+                <div class="metric-card" data-metric="do">
+                    <div class="card-icon do">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <text x="12" y="16" text-anchor="middle" font-size="10" fill="currentColor" stroke="none">O₂</text>
+                        </svg>
+                    </div>
+                    <div class="card-info">
+                        <span class="card-label">Oxy hòa tan (DO)</span>
+                        <div class="card-value">
+                            <span class="value" id="val-do">--</span>
+                            <span class="unit">mg/L</span>
+                        </div>
+                    </div>
+                    <div class="card-bar">
+                        <div class="card-bar-fill" id="bar-do"></div>
+                    </div>
+                    <span class="card-status" id="status-do">Đang tải...</span>
+                </div>
+
+                <!-- Turbidity -->
+                <div class="metric-card" data-metric="turbidity">
+                    <div class="card-icon turbidity">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/>
+                            <path d="M8 14h8" opacity="0.5"/>
+                            <path d="M7 17h10" opacity="0.3"/>
+                        </svg>
+                    </div>
+                    <div class="card-info">
+                        <span class="card-label">Độ đục</span>
+                        <div class="card-value">
+                            <span class="value" id="val-turbidity">--</span>
+                            <span class="unit">NTU</span>
+                        </div>
+                    </div>
+                    <div class="card-bar">
+                        <div class="card-bar-fill" id="bar-turbidity"></div>
+                    </div>
+                    <span class="card-status" id="status-turbidity">Đang tải...</span>
+                </div>
+
+                <!-- Ammonia -->
+                <div class="metric-card" data-metric="ammonia">
+                    <div class="card-icon ammonia">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M7 7l5-5 5 5M7 12h10"/>
+                        </svg>
+                    </div>
+                    <div class="card-info">
+                        <span class="card-label">Ammonia (NH₃)</span>
+                        <div class="card-value">
+                            <span class="value" id="val-ammonia">--</span>
+                            <span class="unit">mg/L</span>
+                        </div>
+                    </div>
+                    <div class="card-bar">
+                        <div class="card-bar-fill" id="bar-ammonia"></div>
+                    </div>
+                    <span class="card-status" id="status-ammonia">Đang tải...</span>
+                </div>
+
+                <!-- TDS -->
+                <div class="metric-card" data-metric="tds">
+                    <div class="card-icon tds">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="4" width="16" height="16" rx="2"/>
+                            <path d="M9 9h6M9 12h6M9 15h4"/>
+                        </svg>
+                    </div>
+                    <div class="card-info">
+                        <span class="card-label">TDS</span>
+                        <div class="card-value">
+                            <span class="value" id="val-tds">--</span>
+                            <span class="unit">ppm</span>
+                        </div>
+                    </div>
+                    <div class="card-bar">
+                        <div class="card-bar-fill" id="bar-tds"></div>
+                    </div>
+                    <span class="card-status" id="status-tds">Đang tải...</span>
+                </div>
+            </div>
+
+            <!-- Quick View Row: Video + Fish Recognition -->
+            <div class="overview-row">
+                <!-- Mini Video -->
+                <div class="glass-panel video-mini-panel">
+                    <div class="panel-header">
+                        <h3>📹 Video Stream</h3>
+                        <button class="btn-icon" id="btnGoToVideo" title="Xem đầy đủ">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                                <polyline points="15,3 21,3 21,9"/>
+                                <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="video-container-mini" id="videoContainerMini">
+                        <div class="video-placeholder">
+                            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                <rect x="8" y="12" width="48" height="40" rx="4"/>
+                                <path d="M28 26l12 8-12 8z"/>
+                            </svg>
+                            <p>Video Stream chưa kết nối</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mini Fish Recognition -->
+                <div class="glass-panel fish-mini-panel">
+                    <div class="panel-header">
+                        <h3>🐟 Nhận Dạng Cá</h3>
+                        <button class="btn-icon" id="btnGoToFish" title="Xem đầy đủ">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                                <polyline points="15,3 21,3 21,9"/>
+                                <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="fish-latest" id="fishLatestMini">
+                        <div class="fish-placeholder">
+                            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                <path d="M8 32c8-16 16-20 24-20s12 8 16 4c0 8-4 12-16 16C20 36 16 48 8 32z"/>
+                                <circle cx="40" cy="28" r="2"/>
+                            </svg>
+                            <p>Chưa có dữ liệu nhận dạng</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Water Quality Detail -->
+        <section class="section" id="section-water-quality">
+            <div class="section-header">
+                <h2>Chi Tiết Chất Lượng Nước</h2>
+                <span class="last-updated" id="wqLastUpdated">Cập nhật: --</span>
+            </div>
+            <div class="chart-container glass-panel">
+                <div class="chart-header">
+                    <h3>Biểu Đồ Xu Hướng</h3>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-range="1h">1h</button>
+                        <button class="chart-btn" data-range="6h">6h</button>
+                        <button class="chart-btn" data-range="24h">24h</button>
+                        <button class="chart-btn" data-range="7d">7d</button>
+                    </div>
+                </div>
+                <canvas id="waterQualityChart"></canvas>
+            </div>
+            <div class="cards-grid" id="waterCardsDetail">
+                <!-- Will be populated same as overview cards but with more detail -->
+            </div>
+        </section>
+
+        <!-- Section: Video Stream -->
+        <section class="section" id="section-video-stream">
+            <div class="section-header">
+                <h2>Video Stream & Xử Lý Ảnh</h2>
+                <div class="stream-controls">
+                    <span class="stream-status" id="streamStatus">
+                        <span class="status-dot offline"></span>
+                        Offline
+                    </span>
+                </div>
+            </div>
+            <div class="glass-panel video-main-panel">
+                <div class="video-container" id="videoContainer">
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                            <rect x="8" y="14" width="64" height="52" rx="6"/>
+                            <path d="M34 30l16 10-16 10z"/>
+                        </svg>
+                        <p>Video Stream chưa kết nối</p>
+                        <span class="placeholder-hint">Cấu hình URL stream trong Firebase hoặc kết nối API</span>
+                    </div>
+                    <!-- Video / Image element will be injected here -->
+                    <div class="video-overlay" id="videoOverlay">
+                        <div class="overlay-top">
+                            <span class="live-badge">● LIVE</span>
+                            <span class="stream-info" id="streamInfo">--</span>
+                        </div>
+                        <div class="overlay-bottom">
+                            <span class="detection-info" id="detectionInfo">Chờ xử lý...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="video-actions">
+                    <button class="btn btn-outline" id="btnRefreshStream">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <polyline points="23,4 23,10 17,10"/>
+                            <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                        </svg>
+                        Làm mới
+                    </button>
+                    <button class="btn btn-outline" id="btnFullscreen">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <polyline points="15,3 21,3 21,9"/>
+                            <polyline points="9,21 3,21 3,15"/>
+                            <line x1="21" y1="3" x2="14" y2="10"/>
+                            <line x1="3" y1="21" x2="10" y2="14"/>
+                        </svg>
+                        Toàn màn hình
+                    </button>
+                    <button class="btn btn-primary" id="btnCapture">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                        Chụp ảnh
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Fish Recognition -->
+        <section class="section" id="section-fish-recognition">
+            <div class="section-header">
+                <h2>Nhận Dạng Hình Ảnh Cá</h2>
+            </div>
+
+            <!-- Latest Recognition Result -->
+            <div class="glass-panel recognition-latest">
+                <div class="panel-header">
+                    <h3>Kết Quả Mới Nhất</h3>
+                    <span class="recognition-time" id="recognitionTime">--</span>
+                </div>
+                <div class="recognition-result" id="recognitionResult">
+                    <div class="recognition-image" id="recognitionImage">
+                        <div class="fish-placeholder">
+                            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                <path d="M8 32c8-16 16-20 24-20s12 8 16 4c0 8-4 12-16 16C20 36 16 48 8 32z"/>
+                                <circle cx="40" cy="28" r="2"/>
+                            </svg>
+                            <p>Chưa có dữ liệu</p>
+                        </div>
+                    </div>
+                    <div class="recognition-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Loại cá</span>
+                            <span class="detail-value" id="fishSpecies">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Độ tin cậy</span>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" id="confidenceFill" style="width:0%"></div>
+                                <span class="confidence-text" id="confidenceText">--%</span>
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Số lượng phát hiện</span>
+                            <span class="detail-value" id="fishCount">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recognition History -->
+            <div class="glass-panel">
+                <div class="panel-header">
+                    <h3>Lịch Sử Nhận Dạng</h3>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="recognitionHistory">
+                        <thead>
+                            <tr>
+                                <th>Thời gian</th>
+                                <th>Loại cá</th>
+                                <th>Độ tin cậy</th>
+                                <th>Số lượng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <tr class="empty-row">
+                                <td colspan="4">Chưa có dữ liệu lịch sử</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="bottom-nav-item active" data-section="overview">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            <span>Tổng quan</span>
+        </button>
+        <button class="bottom-nav-item" data-section="water-quality">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/>
+            </svg>
+            <span>Nước</span>
+        </button>
+        <button class="bottom-nav-item" data-section="video-stream">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <path d="M10 9l5 3-5 3z"/>
+            </svg>
+            <span>Video</span>
+        </button>
+        <button class="bottom-nav-item" data-section="fish-recognition">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 12c3-6 7-9 10-9s7 3 10 9c-3 6-7 9-10 9s-7-3-10-9z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span>Nhận dạng</span>
+        </button>
+    </nav>
+
+    <!-- Scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/water-quality.js"></script>
+    <script src="js/fish-recognition.js"></script>
+    <script src="js/video-stream.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
